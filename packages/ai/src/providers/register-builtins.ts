@@ -18,6 +18,7 @@ import type { GoogleVertexOptions } from "./google-vertex.ts";
 import type { MistralOptions } from "./mistral.ts";
 import type { OpenAICodexResponsesOptions } from "./openai-codex-responses.ts";
 import type { OpenAICompletionsOptions } from "./openai-completions.ts";
+import type { OpenAIRealtimeOptions } from "./openai-realtime.ts";
 import type { OpenAIResponsesOptions } from "./openai-responses.ts";
 
 interface LazyProviderModule<
@@ -68,6 +69,11 @@ interface OpenAICompletionsProviderModule {
 	streamSimpleOpenAICompletions: StreamFunction<"openai-completions", SimpleStreamOptions>;
 }
 
+interface OpenAIRealtimeProviderModule {
+	streamOpenAIRealtime: StreamFunction<"openai-realtime", OpenAIRealtimeOptions>;
+	streamSimpleOpenAIRealtime: StreamFunction<"openai-realtime", SimpleStreamOptions>;
+}
+
 interface OpenAIResponsesProviderModule {
 	streamOpenAIResponses: StreamFunction<"openai-responses", OpenAIResponsesOptions>;
 	streamSimpleOpenAIResponses: StreamFunction<"openai-responses", SimpleStreamOptions>;
@@ -111,6 +117,9 @@ let openAICodexResponsesProviderModulePromise:
 	| undefined;
 let openAICompletionsProviderModulePromise:
 	| Promise<LazyProviderModule<"openai-completions", OpenAICompletionsOptions, SimpleStreamOptions>>
+	| undefined;
+let openAIRealtimeProviderModulePromise:
+	| Promise<LazyProviderModule<"openai-realtime", OpenAIRealtimeOptions, SimpleStreamOptions>>
 	| undefined;
 let openAIResponsesProviderModulePromise:
 	| Promise<LazyProviderModule<"openai-responses", OpenAIResponsesOptions, SimpleStreamOptions>>
@@ -294,6 +303,19 @@ function loadOpenAICompletionsProviderModule(): Promise<
 	return openAICompletionsProviderModulePromise;
 }
 
+function loadOpenAIRealtimeProviderModule(): Promise<
+	LazyProviderModule<"openai-realtime", OpenAIRealtimeOptions, SimpleStreamOptions>
+> {
+	openAIRealtimeProviderModulePromise ||= import("./openai-realtime.ts").then((module) => {
+		const provider = module as OpenAIRealtimeProviderModule;
+		return {
+			stream: provider.streamOpenAIRealtime,
+			streamSimple: provider.streamSimpleOpenAIRealtime,
+		};
+	});
+	return openAIRealtimeProviderModulePromise;
+}
+
 function loadOpenAIResponsesProviderModule(): Promise<
 	LazyProviderModule<"openai-responses", OpenAIResponsesOptions, SimpleStreamOptions>
 > {
@@ -337,6 +359,8 @@ export const streamOpenAICodexResponses = createLazyStream(loadOpenAICodexRespon
 export const streamSimpleOpenAICodexResponses = createLazySimpleStream(loadOpenAICodexResponsesProviderModule);
 export const streamOpenAICompletions = createLazyStream(loadOpenAICompletionsProviderModule);
 export const streamSimpleOpenAICompletions = createLazySimpleStream(loadOpenAICompletionsProviderModule);
+export const streamOpenAIRealtime = createLazyStream(loadOpenAIRealtimeProviderModule);
+export const streamSimpleOpenAIRealtime = createLazySimpleStream(loadOpenAIRealtimeProviderModule);
 export const streamOpenAIResponses = createLazyStream(loadOpenAIResponsesProviderModule);
 export const streamSimpleOpenAIResponses = createLazySimpleStream(loadOpenAIResponsesProviderModule);
 const streamBedrockLazy = createLazyStream(loadBedrockProviderModule);
@@ -359,6 +383,12 @@ export function registerBuiltInApiProviders(): void {
 		api: "mistral-conversations",
 		stream: streamMistral,
 		streamSimple: streamSimpleMistral,
+	});
+
+	registerApiProvider({
+		api: "openai-realtime",
+		stream: streamOpenAIRealtime,
+		streamSimple: streamSimpleOpenAIRealtime,
 	});
 
 	registerApiProvider({

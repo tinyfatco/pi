@@ -706,6 +706,7 @@ The library uses a registry of API implementations. Built-in APIs include:
 - **`google-vertex`**: Google Vertex AI API (`streamGoogleVertex`, `GoogleVertexOptions`)
 - **`mistral-conversations`**: Mistral Conversations API (`streamMistral`, `MistralOptions`)
 - **`openai-completions`**: OpenAI Chat Completions API (`streamOpenAICompletions`, `OpenAICompletionsOptions`)
+- **`openai-realtime`**: OpenAI Realtime API over WebSocket (`streamOpenAIRealtime`, `OpenAIRealtimeOptions`)
 - **`openai-responses`**: OpenAI Responses API (`streamOpenAIResponses`, `OpenAIResponsesOptions`)
 - **`openai-codex-responses`**: OpenAI Codex Responses API (`streamOpenAICodexResponses`, `OpenAICodexResponsesOptions`)
 - **`azure-openai-responses`**: Azure OpenAI Responses API (`streamAzureOpenAIResponses`, `AzureOpenAIResponsesOptions`)
@@ -802,7 +803,8 @@ Notes:
 A **provider** offers models through a specific API. For example:
 - **Anthropic** models use the `anthropic-messages` API
 - **Google** models use the `google-generative-ai` API
-- **OpenAI** models use the `openai-responses` API
+- **OpenAI** text/reasoning models use the `openai-responses` API
+- **OpenAI Realtime** models such as `gpt-realtime-2` use the `openai-realtime` API
 - **Mistral** models use the `mistral-conversations` API
 - **xAI, Cerebras, Groq, NVIDIA NIM, Together AI, etc.** models use the `openai-completions` API (OpenAI-compatible)
 

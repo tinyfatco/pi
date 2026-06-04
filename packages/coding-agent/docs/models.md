@@ -123,6 +123,7 @@ The `baseUrl` is required when adding custom models to the `google-generative-ai
 | API | Description |
 |-----|-------------|
 | `openai-completions` | OpenAI Chat Completions (most compatible) |
+| `openai-realtime` | OpenAI Realtime API over WebSocket (text/image input, text output, tools) |
 | `openai-responses` | OpenAI Responses API |
 | `anthropic-messages` | Anthropic Messages API |
 | `google-generative-ai` | Google Generative AI |
