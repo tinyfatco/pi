@@ -38,7 +38,6 @@ export interface OpenAIRealtimeOptions extends StreamOptions {
 }
 
 type RealtimeResponseCreateParamsWithCurrentDocs = RealtimeResponseCreateParams & {
-	model?: string;
 	parallel_tool_calls?: boolean;
 	reasoning?: { effort?: RealtimeReasoningEffort | string };
 };
@@ -300,7 +299,6 @@ export function buildResponseCreateEvent(
 		conversation: "none",
 		input: convertRealtimeMessages(model, context),
 		instructions: context.systemPrompt ? sanitizeSurrogates(context.systemPrompt) : undefined,
-		model: model.id,
 		output_modalities: ["text"],
 		tool_choice: context.tools && context.tools.length > 0 ? "auto" : undefined,
 		tools: context.tools && context.tools.length > 0 ? convertRealtimeTools(context.tools) : undefined,

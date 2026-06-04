@@ -219,7 +219,6 @@ describe("openai realtime provider", () => {
 			response: {
 				conversation: string;
 				instructions: string;
-				model: string;
 				output_modalities: string[];
 				max_output_tokens: number;
 				reasoning: { effort: string };
@@ -231,7 +230,6 @@ describe("openai realtime provider", () => {
 		expect(payload.type).toBe("response.create");
 		expect(payload.response.conversation).toBe("none");
 		expect(payload.response.instructions).toBe("Be concise.");
-		expect(payload.response.model).toBe("gpt-realtime-2");
 		expect(payload.response.output_modalities).toEqual(["text"]);
 		expect(payload.response.max_output_tokens).toBe(123);
 		expect(payload.response.reasoning).toEqual({ effort: "xhigh" });
