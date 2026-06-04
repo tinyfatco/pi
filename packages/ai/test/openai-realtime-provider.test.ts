@@ -117,6 +117,10 @@ import {
 import "../src/providers/register-builtins.ts";
 import type { AssistantMessage, Context, Model, ToolResultMessage, Usage } from "../src/types.ts";
 
+const originalRealtimeOutputModality = process.env.PI_OPENAI_REALTIME_OUTPUT_MODALITY;
+const originalRealtimeVoice = process.env.PI_OPENAI_REALTIME_VOICE;
+const originalRealtimeAudioFormat = process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT;
+
 const usage: Usage = {
 	input: 0,
 	output: 0,
@@ -158,6 +162,21 @@ function latestRealtimeInstance(): InstanceType<typeof realtimeMock.MockOpenAIRe
 
 afterEach(() => {
 	realtimeMock.MockOpenAIRealtimeWS.instances.length = 0;
+	if (originalRealtimeOutputModality === undefined) {
+		delete process.env.PI_OPENAI_REALTIME_OUTPUT_MODALITY;
+	} else {
+		process.env.PI_OPENAI_REALTIME_OUTPUT_MODALITY = originalRealtimeOutputModality;
+	}
+	if (originalRealtimeVoice === undefined) {
+		delete process.env.PI_OPENAI_REALTIME_VOICE;
+	} else {
+		process.env.PI_OPENAI_REALTIME_VOICE = originalRealtimeVoice;
+	}
+	if (originalRealtimeAudioFormat === undefined) {
+		delete process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT;
+	} else {
+		process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT = originalRealtimeAudioFormat;
+	}
 	vi.restoreAllMocks();
 });
 
@@ -308,6 +327,18 @@ describe("openai realtime provider", () => {
 		expect(events).toContain("text_delta:Hel");
 		expect(events).toContain("text_delta:lo");
 		expect(events.at(-1)).toBe("done");
+	});
+
+	it("uses realtime environment variables to request audio output", () => {
+		process.env.PI_OPENAI_REALTIME_VOICE = "marin";
+		process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT = "pcmu";
+		const payload = buildResponseCreateEvent(createModel(), {
+			messages: [{ role: "user", content: "Say hello", timestamp: Date.now() }],
+		});
+
+		expect(payload.response?.output_modalities).toEqual(["audio"]);
+		expect(payload.response?.audio?.output?.voice).toBe("marin");
+		expect(payload.response?.audio?.output?.format).toEqual({ type: "audio/pcmu" });
 	});
 
 	it("streams audio output callbacks and transcript text", async () => {
