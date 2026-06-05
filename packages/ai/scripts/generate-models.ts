@@ -2106,6 +2106,9 @@ export const MODELS = {
 			if (model.baseUrl !== undefined) {
 				output += `\t\t\tbaseUrl: "${model.baseUrl}",\n`;
 			}
+			if (model.sessionMode) {
+				output += `\t\t\tsessionMode: "${model.sessionMode}",\n`;
+			}
 			if (model.headers) {
 				output += `\t\t\theaders: ${JSON.stringify(model.headers)},\n`;
 			}

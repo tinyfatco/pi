@@ -1,5 +1,5 @@
 import { MODELS } from "./models.generated.ts";
-import type { Api, KnownProvider, Model, ModelThinkingLevel, Usage } from "./types.ts";
+import type { Api, KnownProvider, Model, ModelSessionMode, ModelThinkingLevel, Usage } from "./types.ts";
 
 const modelRegistry: Map<string, Map<string, Model<Api>>> = new Map();
 
@@ -43,6 +43,18 @@ export function calculateCost<TApi extends Api>(model: Model<TApi>, usage: Usage
 	usage.cost.cacheWrite = (model.cost.cacheWrite / 1000000) * usage.cacheWrite;
 	usage.cost.total = usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite;
 	return usage.cost;
+}
+
+export function getModelSessionMode<TApi extends Api>(model: Model<TApi>): ModelSessionMode {
+	return model.sessionMode ?? "turn";
+}
+
+export function isTurnBasedModel<TApi extends Api>(model: Model<TApi>): boolean {
+	return getModelSessionMode(model) === "turn";
+}
+
+export function isRealtimeModel<TApi extends Api>(model: Model<TApi>): boolean {
+	return getModelSessionMode(model) === "realtime";
 }
 
 const EXTENDED_THINKING_LEVELS: ModelThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
