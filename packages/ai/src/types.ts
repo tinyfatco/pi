@@ -77,6 +77,7 @@ export type ImagesProviderId = KnownImagesProvider | string;
 export type ThinkingLevel = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type ModelThinkingLevel = "off" | ThinkingLevel;
 export type ThinkingLevelMap = Partial<Record<ModelThinkingLevel, string | null>>;
+export type ModelSessionMode = "turn" | "realtime";
 export type ChatTemplateKwargValue =
 	| string
 	| number
@@ -707,6 +708,11 @@ export interface Model<TApi extends Api> {
 	api: TApi;
 	provider: ProviderId;
 	baseUrl: string;
+	/**
+	 * Distinguishes ordinary turn-based text/tool models from realtime session models.
+	 * Omitted means "turn" for backward-compatible model metadata.
+	 */
+	sessionMode?: ModelSessionMode;
 	reasoning: boolean;
 	/**
 	 * Maps pi thinking levels to provider/model-specific values.
