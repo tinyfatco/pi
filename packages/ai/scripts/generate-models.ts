@@ -2236,6 +2236,9 @@ async function generateModels() {
 		if (model.baseUrl !== undefined) {
 			output += `${indent}\tbaseUrl: "${model.baseUrl}",\n`;
 		}
+		if (model.sessionMode) {
+			output += `${indent}\tsessionMode: "${model.sessionMode}",\n`;
+		}
 		if (model.headers) {
 			output += `${indent}\theaders: ${JSON.stringify(model.headers)},\n`;
 		}

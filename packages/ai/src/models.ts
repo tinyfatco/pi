@@ -11,6 +11,7 @@ import type {
 	Context,
 	Model,
 	ModelCostRates,
+	ModelSessionMode,
 	ModelThinkingLevel,
 	ProviderHeaders,
 	ProviderStreams,
@@ -403,6 +404,18 @@ export function calculateCost<TApi extends Api>(model: Model<TApi>, usage: Usage
 	usage.cost.cacheWrite = (rates.cacheWrite * shortWrite + rates.input * 2 * longWrite) / 1000000;
 	usage.cost.total = usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite;
 	return usage.cost;
+}
+
+export function getModelSessionMode<TApi extends Api>(model: Model<TApi>): ModelSessionMode {
+	return model.sessionMode ?? "turn";
+}
+
+export function isTurnBasedModel<TApi extends Api>(model: Model<TApi>): boolean {
+	return getModelSessionMode(model) === "turn";
+}
+
+export function isRealtimeModel<TApi extends Api>(model: Model<TApi>): boolean {
+	return getModelSessionMode(model) === "realtime";
 }
 
 const EXTENDED_THINKING_LEVELS: ModelThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
