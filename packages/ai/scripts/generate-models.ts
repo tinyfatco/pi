@@ -1798,6 +1798,30 @@ async function generateModels() {
 	];
 	allModels.push(...codexModels);
 
+	for (let i = allModels.length - 1; i >= 0; i--) {
+		const candidate = allModels[i];
+		if (candidate.provider === "openai" && candidate.id === "gpt-realtime-2") {
+			allModels.splice(i, 1);
+		}
+	}
+
+	const realtimeModels: Model<"openai-realtime">[] = [
+		{
+			id: "gpt-realtime-2",
+			name: "GPT Realtime 2",
+			api: "openai-realtime",
+			provider: "openai",
+			baseUrl: "https://api.openai.com/v1",
+			reasoning: true,
+			thinkingLevelMap: { off: null, xhigh: "xhigh" },
+			input: ["text", "image"],
+			cost: { input: 4, output: 24, cacheRead: 0.4, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 32000,
+		},
+	];
+	allModels.push(...realtimeModels);
+
 	// Add missing Grok models
 	const missingGrokModels: Model<"openai-completions">[] = [
 		{

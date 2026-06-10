@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added OpenAI Realtime API support with the `openai-realtime` provider and `openai/gpt-realtime-2` model.
 - Added Ant Ling as a built-in OpenAI-compatible provider with Ling 2.6 and Ring 2.6 models.
 - Added `Model.sessionMode` metadata and helpers for distinguishing turn-based and realtime models.
 - Added MiniMax-M3 model to the `minimax` and `minimax-cn` direct providers, and removed the hardcoded context-window override that was masking models.dev values ([#5313](https://github.com/earendil-works/pi/issues/5313)).

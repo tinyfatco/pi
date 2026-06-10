@@ -21,6 +21,7 @@ export type {
 	OpenAICodexWebSocketDebugStats,
 } from "./providers/openai-codex-responses.ts";
 export type { OpenAICompletionsOptions } from "./providers/openai-completions.ts";
+export type { OpenAIRealtimeOptions } from "./providers/openai-realtime.ts";
 export type { OpenAIResponsesOptions } from "./providers/openai-responses.ts";
 export * from "./providers/register-builtins.ts";
 export * from "./session-resources.ts";
