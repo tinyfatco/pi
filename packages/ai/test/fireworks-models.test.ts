@@ -18,6 +18,25 @@ afterEach(() => {
 });
 
 describe("Fireworks models", () => {
+	it("registers GLM 5.2 with Fireworks pricing and long context", () => {
+		const model = getModel("fireworks", "accounts/fireworks/models/glm-5p2");
+
+		expect(model).toBeDefined();
+		expect(model.api).toBe("anthropic-messages");
+		expect(model.provider).toBe("fireworks");
+		expect(model.baseUrl).toBe("https://api.fireworks.ai/inference");
+		expect(model.reasoning).toBe(true);
+		expect(model.input).toEqual(["text"]);
+		expect(model.contextWindow).toBe(1048576);
+		expect(model.maxTokens).toBe(131072);
+		expect(model.cost).toEqual({
+			input: 1.4,
+			output: 4.4,
+			cacheRead: 0.26,
+			cacheWrite: 0,
+		});
+	});
+
 	it("registers the default Kimi K2.6 model via Anthropic-compatible Messages API", () => {
 		const model = getModel("fireworks", "accounts/fireworks/models/kimi-k2p6");
 

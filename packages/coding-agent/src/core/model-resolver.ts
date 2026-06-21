@@ -36,7 +36,7 @@ export const defaultModelPerProvider: Record<KnownProvider, string> = {
 	moonshotai: "kimi-k2.6",
 	"moonshotai-cn": "kimi-k2.6",
 	huggingface: "moonshotai/Kimi-K2.6",
-	fireworks: "accounts/fireworks/models/kimi-k2p6",
+	fireworks: "accounts/fireworks/models/glm-5p2",
 	together: "moonshotai/Kimi-K2.6",
 	opencode: "kimi-k2.6",
 	"opencode-go": "kimi-k2.6",
