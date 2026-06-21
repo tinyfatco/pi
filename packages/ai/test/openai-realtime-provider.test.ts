@@ -117,6 +117,10 @@ import {
 import "../src/providers/register-builtins.ts";
 import type { AssistantMessage, Context, Model, ToolResultMessage, Usage } from "../src/types.ts";
 
+const originalRealtimeOutputModality = process.env.PI_OPENAI_REALTIME_OUTPUT_MODALITY;
+const originalRealtimeVoice = process.env.PI_OPENAI_REALTIME_VOICE;
+const originalRealtimeAudioFormat = process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT;
+
 const usage: Usage = {
 	input: 0,
 	output: 0,
@@ -158,6 +162,21 @@ function latestRealtimeInstance(): InstanceType<typeof realtimeMock.MockOpenAIRe
 
 afterEach(() => {
 	realtimeMock.MockOpenAIRealtimeWS.instances.length = 0;
+	if (originalRealtimeOutputModality === undefined) {
+		delete process.env.PI_OPENAI_REALTIME_OUTPUT_MODALITY;
+	} else {
+		process.env.PI_OPENAI_REALTIME_OUTPUT_MODALITY = originalRealtimeOutputModality;
+	}
+	if (originalRealtimeVoice === undefined) {
+		delete process.env.PI_OPENAI_REALTIME_VOICE;
+	} else {
+		process.env.PI_OPENAI_REALTIME_VOICE = originalRealtimeVoice;
+	}
+	if (originalRealtimeAudioFormat === undefined) {
+		delete process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT;
+	} else {
+		process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT = originalRealtimeAudioFormat;
+	}
 	vi.restoreAllMocks();
 });
 
@@ -308,6 +327,118 @@ describe("openai realtime provider", () => {
 		expect(events).toContain("text_delta:Hel");
 		expect(events).toContain("text_delta:lo");
 		expect(events.at(-1)).toBe("done");
+	});
+
+	it("uses realtime environment variables to request audio output", () => {
+		process.env.PI_OPENAI_REALTIME_VOICE = "marin";
+		process.env.PI_OPENAI_REALTIME_AUDIO_FORMAT = "pcmu";
+		const payload = buildResponseCreateEvent(createModel(), {
+			messages: [{ role: "user", content: "Say hello", timestamp: Date.now() }],
+		});
+
+		expect(payload.response?.output_modalities).toEqual(["audio"]);
+		expect(payload.response?.audio?.output?.voice).toBe("marin");
+		expect(payload.response?.audio?.output?.format).toEqual({ type: "audio/pcmu" });
+	});
+
+	it("streams audio output callbacks and transcript text", async () => {
+		const model = createModel();
+		const context: Context = { messages: [{ role: "user", content: "Say hello", timestamp: Date.now() }] };
+		const onAudioDelta = vi.fn();
+		const onAudioDone = vi.fn();
+		const resultStream = streamOpenAIRealtime(model, context, {
+			apiKey: "sk-test",
+			voice: "cedar",
+			audioOutputFormat: { type: "audio/pcm", rate: 24000 },
+			onAudioDelta,
+			onAudioDone,
+		});
+
+		await waitFor(() => latestRealtimeInstance().sent.length === 1);
+		const instance = latestRealtimeInstance();
+		const payload = instance.sent[0] as {
+			response?: {
+				output_modalities?: string[];
+				audio?: { output?: { voice?: string; format?: unknown } };
+			};
+		};
+		expect(payload.response?.output_modalities).toEqual(["audio"]);
+		expect(payload.response?.audio?.output?.voice).toBe("cedar");
+		expect(payload.response?.audio?.output?.format).toEqual({ type: "audio/pcm", rate: 24000 });
+
+		instance.emitEvent({
+			type: "response.output_item.added",
+			event_id: "evt_1",
+			response_id: "resp_1",
+			output_index: 0,
+			item: { type: "message", id: "msg_audio", role: "assistant", status: "in_progress", content: [] },
+		});
+		instance.emitEvent({
+			type: "response.output_audio.delta",
+			event_id: "evt_2",
+			response_id: "resp_1",
+			item_id: "msg_audio",
+			output_index: 0,
+			content_index: 0,
+			delta: "UklGRg==",
+		});
+		instance.emitEvent({
+			type: "response.output_audio_transcript.delta",
+			event_id: "evt_3",
+			response_id: "resp_1",
+			item_id: "msg_audio",
+			output_index: 0,
+			content_index: 0,
+			delta: "Hel",
+		});
+		instance.emitEvent({
+			type: "response.output_audio_transcript.done",
+			event_id: "evt_4",
+			response_id: "resp_1",
+			item_id: "msg_audio",
+			output_index: 0,
+			content_index: 0,
+			transcript: "Hello",
+		});
+		instance.emitEvent({
+			type: "response.output_audio.done",
+			event_id: "evt_5",
+			response_id: "resp_1",
+			item_id: "msg_audio",
+			output_index: 0,
+			content_index: 0,
+		});
+		instance.emitEvent({
+			type: "response.output_item.done",
+			event_id: "evt_6",
+			response_id: "resp_1",
+			output_index: 0,
+			item: {
+				type: "message",
+				id: "msg_audio",
+				role: "assistant",
+				status: "completed",
+				content: [{ type: "output_audio", transcript: "Hello" }],
+			},
+		});
+		instance.emitEvent({ type: "response.done", event_id: "evt_7", response: { id: "resp_1", status: "completed" } });
+
+		const result = await resultStream.result();
+		expect(result.stopReason).toBe("stop");
+		expect(result.content).toEqual([{ type: "text", text: "Hello", textSignature: "msg_audio" }]);
+		expect(onAudioDelta).toHaveBeenCalledWith({
+			responseId: "resp_1",
+			itemId: "msg_audio",
+			outputIndex: 0,
+			contentIndex: 0,
+			delta: "UklGRg==",
+		});
+		expect(onAudioDone).toHaveBeenCalledWith({
+			responseId: "resp_1",
+			itemId: "msg_audio",
+			outputIndex: 0,
+			contentIndex: 0,
+		});
 	});
 
 	it("converts tool history and streams tool calls", async () => {

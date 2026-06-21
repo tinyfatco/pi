@@ -196,7 +196,7 @@ The `api` field determines which streaming implementation is used:
 |-----|---------|
 | `anthropic-messages` | Anthropic Claude API and compatibles |
 | `openai-completions` | OpenAI Chat Completions API and compatibles |
-| `openai-realtime` | OpenAI Realtime API over WebSocket (text/image input, text output, tools) |
+| `openai-realtime` | OpenAI Realtime API over WebSocket (text/image input, text output, tools, provider-level audio output callbacks). `PI_OPENAI_REALTIME_VOICE`, `PI_OPENAI_REALTIME_OUTPUT_MODALITY`, and `PI_OPENAI_REALTIME_AUDIO_FORMAT` can override voice/audio output for smoke tests. |
 | `openai-responses` | OpenAI Responses API |
 | `azure-openai-responses` | Azure OpenAI Responses API |
 | `openai-codex-responses` | OpenAI Codex Responses API |

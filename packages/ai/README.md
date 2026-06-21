@@ -706,7 +706,7 @@ The library uses a registry of API implementations. Built-in APIs include:
 - **`google-vertex`**: Google Vertex AI API (`streamGoogleVertex`, `GoogleVertexOptions`)
 - **`mistral-conversations`**: Mistral Conversations API (`streamMistral`, `MistralOptions`)
 - **`openai-completions`**: OpenAI Chat Completions API (`streamOpenAICompletions`, `OpenAICompletionsOptions`)
-- **`openai-realtime`**: OpenAI Realtime API over WebSocket (`streamOpenAIRealtime`, `OpenAIRealtimeOptions`)
+- **`openai-realtime`**: OpenAI Realtime API over WebSocket (`streamOpenAIRealtime`, `OpenAIRealtimeOptions`), including text output and provider-level audio output callbacks. For CLI smoke tests, `PI_OPENAI_REALTIME_VOICE=<voice>` or `PI_OPENAI_REALTIME_OUTPUT_MODALITY=audio` requests audio output, and `PI_OPENAI_REALTIME_AUDIO_FORMAT=pcm|pcmu|pcma` selects the output format.
 - **`openai-responses`**: OpenAI Responses API (`streamOpenAIResponses`, `OpenAIResponsesOptions`)
 - **`openai-codex-responses`**: OpenAI Codex Responses API (`streamOpenAICodexResponses`, `OpenAICodexResponsesOptions`)
 - **`azure-openai-responses`**: Azure OpenAI Responses API (`streamAzureOpenAIResponses`, `AzureOpenAIResponsesOptions`)

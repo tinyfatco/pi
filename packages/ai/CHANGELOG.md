@@ -5,6 +5,7 @@
 ### Added
 
 - Added OpenAI Realtime API support with the `openai-realtime` provider and `openai/gpt-realtime-2` model.
+- Added provider-level audio output options, raw audio callbacks, and `PI_OPENAI_REALTIME_*` environment overrides for OpenAI Realtime voice responses.
 - Added Ant Ling as a built-in OpenAI-compatible provider with Ling 2.6 and Ring 2.6 models.
 - Added MiniMax-M3 model to the `minimax` and `minimax-cn` direct providers, and removed the hardcoded context-window override that was masking models.dev values ([#5313](https://github.com/earendil-works/pi/issues/5313)).
 - Added NVIDIA NIM as a built-in OpenAI-compatible provider, exposing public NIM models that support tool use.

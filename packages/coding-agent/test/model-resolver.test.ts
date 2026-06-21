@@ -390,6 +390,10 @@ describe("default model selection", () => {
 		expect(defaultModelPerProvider["vercel-ai-gateway"]).toBe("zai/glm-5.1");
 	});
 
+	test("fireworks default tracks current managed model", () => {
+		expect(defaultModelPerProvider.fireworks).toBe("accounts/fireworks/models/glm-5p2");
+	});
+
 	test("findInitialModel accepts explicit provider custom model ids", async () => {
 		const registry = {
 			getAll: () => allModels,

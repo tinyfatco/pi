@@ -917,6 +917,31 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 				});
 			}
 		}
+		if (!models.some((model) => model.provider === "fireworks" && model.id === "accounts/fireworks/models/glm-5p2")) {
+			models.push({
+				id: "accounts/fireworks/models/glm-5p2",
+				name: "GLM 5.2",
+				api: "anthropic-messages",
+				provider: "fireworks",
+				baseUrl: "https://api.fireworks.ai/inference",
+				compat: {
+					sendSessionAffinityHeaders: true,
+					supportsEagerToolInputStreaming: false,
+					supportsCacheControlOnTools: false,
+					supportsLongCacheRetention: false,
+				},
+				reasoning: true,
+				input: ["text"],
+				cost: {
+					input: 1.4,
+					output: 4.4,
+					cacheRead: 0.26,
+					cacheWrite: 0,
+				},
+				contextWindow: 1048576,
+				maxTokens: 131072,
+			} satisfies Model<"anthropic-messages">);
+		}
 
 		// Process NVIDIA NIM models
 		if (data.nvidia?.models) {

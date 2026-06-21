@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { OpenAIRealtimeWS } from "openai/realtime/ws.js";
 import type {
 	ConversationItem,
+	RealtimeAudioFormats,
 	RealtimeClientEvent,
 	RealtimeFunctionTool,
 	RealtimeResponse,
@@ -30,11 +31,51 @@ import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
 import { transformMessages } from "./transform-messages.ts";
 
 const DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS = 15_000;
+const OUTPUT_MODALITY_ENV = "PI_OPENAI_REALTIME_OUTPUT_MODALITY";
+const VOICE_ENV = "PI_OPENAI_REALTIME_VOICE";
+const AUDIO_FORMAT_ENV = "PI_OPENAI_REALTIME_AUDIO_FORMAT";
 
 type RealtimeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh";
+type RealtimeOutputModalities = ["text"] | ["audio"];
+type RealtimeVoice =
+	| "alloy"
+	| "ash"
+	| "ballad"
+	| "coral"
+	| "echo"
+	| "sage"
+	| "shimmer"
+	| "verse"
+	| "marin"
+	| "cedar"
+	| (string & {});
+
+export interface OpenAIRealtimeAudioDelta {
+	responseId: string;
+	itemId: string;
+	outputIndex: number;
+	contentIndex: number;
+	delta: string;
+}
+
+export interface OpenAIRealtimeAudioDone extends Omit<OpenAIRealtimeAudioDelta, "delta"> {}
 
 export interface OpenAIRealtimeOptions extends StreamOptions {
 	reasoningEffort?: RealtimeReasoningEffort;
+	/**
+	 * Select text or audio output. Realtime currently accepts one output modality
+	 * per response. Defaults to ["text"], or ["audio"] when voice/audio options
+	 * are provided.
+	 */
+	outputModalities?: RealtimeOutputModalities;
+	/** Voice to use for audio output responses. Setting this implies audio output unless outputModalities is provided. */
+	voice?: RealtimeVoice;
+	/** Audio format for Realtime audio output. */
+	audioOutputFormat?: RealtimeAudioFormats;
+	/** Callback for raw base64 audio deltas when outputModalities is ["audio"]. */
+	onAudioDelta?: (event: OpenAIRealtimeAudioDelta) => void | Promise<void>;
+	/** Callback fired when an audio output stream finishes. */
+	onAudioDone?: (event: OpenAIRealtimeAudioDone) => void | Promise<void>;
 }
 
 type RealtimeResponseCreateParamsWithCurrentDocs = RealtimeResponseCreateParams & {
@@ -152,6 +193,7 @@ export const streamOpenAIRealtime: StreamFunction<"openai-realtime", OpenAIRealt
 				output,
 				stream,
 				model,
+				options,
 			);
 
 			if (options?.signal?.aborted) {
@@ -295,11 +337,14 @@ export function buildResponseCreateEvent(
 	context: Context,
 	options?: OpenAIRealtimeOptions,
 ): RealtimeResponseCreateEventWithCurrentDocs {
+	const voice = resolveVoice(options);
+	const audioOutputFormat = resolveAudioOutputFormat(options);
+	const outputModalities = resolveOutputModalities(options, voice, audioOutputFormat);
 	const response: RealtimeResponseCreateParamsWithCurrentDocs = {
 		conversation: "none",
 		input: convertRealtimeMessages(model, context),
 		instructions: context.systemPrompt ? sanitizeSurrogates(context.systemPrompt) : undefined,
-		output_modalities: ["text"],
+		output_modalities: outputModalities,
 		tool_choice: context.tools && context.tools.length > 0 ? "auto" : undefined,
 		tools: context.tools && context.tools.length > 0 ? convertRealtimeTools(context.tools) : undefined,
 		parallel_tool_calls: context.tools && context.tools.length > 0 ? true : undefined,
@@ -307,6 +352,14 @@ export function buildResponseCreateEvent(
 
 	if (options?.maxTokens !== undefined) {
 		response.max_output_tokens = options.maxTokens;
+	}
+	if (outputModalities[0] === "audio") {
+		response.audio = {
+			output: {
+				format: audioOutputFormat,
+				voice,
+			},
+		};
 	}
 	if (options?.reasoningEffort !== undefined) {
 		response.reasoning = { effort: model.thinkingLevelMap?.[options.reasoningEffort] ?? options.reasoningEffort };
@@ -323,6 +376,7 @@ export async function processRealtimeStream(
 	output: AssistantMessage,
 	stream: AssistantMessageEventStream,
 	model: Model<"openai-realtime">,
+	options?: OpenAIRealtimeOptions,
 ): Promise<void> {
 	const blockStates = new Map<string, BlockState>();
 	const outputIndexToKey = new Map<number, string>();
@@ -365,6 +419,32 @@ export async function processRealtimeStream(
 			if (state?.kind === "text") {
 				state.block.text = event.text;
 			}
+		} else if (event.type === "response.output_audio_transcript.delta") {
+			const state = getBlockState(blockStates, outputIndexToKey, event.item_id, event.output_index);
+			if (state?.kind === "text") {
+				state.block.text += event.delta;
+				stream.push({ type: "text_delta", contentIndex: state.contentIndex, delta: event.delta, partial: output });
+			}
+		} else if (event.type === "response.output_audio_transcript.done") {
+			const state = getBlockState(blockStates, outputIndexToKey, event.item_id, event.output_index);
+			if (state?.kind === "text") {
+				state.block.text = event.transcript;
+			}
+		} else if (event.type === "response.output_audio.delta") {
+			await options?.onAudioDelta?.({
+				responseId: event.response_id,
+				itemId: event.item_id,
+				outputIndex: event.output_index,
+				contentIndex: event.content_index,
+				delta: event.delta,
+			});
+		} else if (event.type === "response.output_audio.done") {
+			await options?.onAudioDone?.({
+				responseId: event.response_id,
+				itemId: event.item_id,
+				outputIndex: event.output_index,
+				contentIndex: event.content_index,
+			});
 		} else if (event.type === "response.function_call_arguments.delta") {
 			const state = getBlockState(blockStates, outputIndexToKey, event.item_id, event.output_index);
 			if (state?.kind === "tool") {
@@ -453,6 +533,55 @@ export async function processRealtimeStream(
 			throw new Error(formatRealtimeEventError(event));
 		}
 	}
+}
+
+function getRealtimeEnv(name: string): string | undefined {
+	if (typeof process === "undefined") return undefined;
+	const value = process.env[name]?.trim();
+	return value && value.length > 0 ? value : undefined;
+}
+
+function resolveVoice(options: OpenAIRealtimeOptions | undefined): RealtimeVoice | undefined {
+	return options?.voice ?? (getRealtimeEnv(VOICE_ENV) as RealtimeVoice | undefined);
+}
+
+function resolveAudioOutputFormat(options: OpenAIRealtimeOptions | undefined): RealtimeAudioFormats | undefined {
+	if (options?.audioOutputFormat) return options.audioOutputFormat;
+	const envValue = getRealtimeEnv(AUDIO_FORMAT_ENV)?.toLowerCase();
+	if (!envValue) return undefined;
+	switch (envValue) {
+		case "pcm":
+		case "pcm16":
+		case "audio/pcm":
+			return { type: "audio/pcm", rate: 24000 };
+		case "pcmu":
+		case "g711_ulaw":
+		case "audio/pcmu":
+			return { type: "audio/pcmu" };
+		case "pcma":
+		case "g711_alaw":
+		case "audio/pcma":
+			return { type: "audio/pcma" };
+		default:
+			throw new Error(`Invalid ${AUDIO_FORMAT_ENV}: ${envValue}`);
+	}
+}
+
+function resolveOutputModalities(
+	options: OpenAIRealtimeOptions | undefined,
+	voice: RealtimeVoice | undefined,
+	audioOutputFormat: RealtimeAudioFormats | undefined,
+): RealtimeOutputModalities {
+	if (options?.outputModalities) {
+		return options.outputModalities;
+	}
+	const envValue = getRealtimeEnv(OUTPUT_MODALITY_ENV)?.toLowerCase();
+	if (envValue === "text") return ["text"];
+	if (envValue === "audio") return ["audio"];
+	if (envValue) {
+		throw new Error(`Invalid ${OUTPUT_MODALITY_ENV}: ${envValue}`);
+	}
+	return voice || audioOutputFormat ? ["audio"] : ["text"];
 }
 
 function buildRealtimeHeaders(
