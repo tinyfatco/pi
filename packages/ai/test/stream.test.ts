@@ -1530,11 +1530,12 @@ describe("Generate E2E Tests", () => {
 		});
 	});
 
-	// Check if ollama is installed and local LLM tests are enabled
+	// Local LLM tests are opt-in because the fixture downloads a 13 GB model.
 	let ollamaInstalled = false;
-	if (!process.env.PI_NO_LOCAL_LLM) {
+	if (process.env.PI_TEST_LOCAL_LLM === "1" && !process.env.PI_NO_LOCAL_LLM) {
 		try {
 			execSync("which ollama", { stdio: "ignore" });
+			execSync("ollama list | grep -q 'gpt-oss:20b'", { stdio: "ignore" });
 			ollamaInstalled = true;
 		} catch {
 			ollamaInstalled = false;
@@ -1546,19 +1547,6 @@ describe("Generate E2E Tests", () => {
 		let ollamaProcess: ChildProcess | null = null;
 
 		beforeAll(async () => {
-			// Check if model is available, if not pull it
-			try {
-				execSync("ollama list | grep -q 'gpt-oss:20b'", { stdio: "ignore" });
-			} catch {
-				console.log("Pulling gpt-oss:20b model for Ollama tests...");
-				try {
-					execSync("ollama pull gpt-oss:20b", { stdio: "inherit" });
-				} catch (_e) {
-					console.warn("Failed to pull gpt-oss:20b model, tests will be skipped");
-					return;
-				}
-			}
-
 			// Start ollama server
 			ollamaProcess = spawn("ollama", ["serve"], {
 				detached: false,
