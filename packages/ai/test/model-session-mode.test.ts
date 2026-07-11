@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getModel, getModelSessionMode, isRealtimeModel, isTurnBasedModel, type Model } from "../src/index.ts";
+import { getModel } from "../src/compat.ts";
+import { getModelSessionMode, isRealtimeModel, isTurnBasedModel, type Model } from "../src/index.ts";
 
 describe("model session mode", () => {
 	it("defaults existing model metadata to turn-based", () => {
