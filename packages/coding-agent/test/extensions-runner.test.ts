@@ -1,3 +1,4 @@
+import { createInMemoryModelRegistry } from "./model-runtime-test-utils.ts";
 /**
  * Tests for ExtensionRunner - conflict detection, error handling, tool wrapping.
  */
@@ -16,7 +17,8 @@ import type {
 	ProviderConfig,
 } from "../src/core/extensions/types.ts";
 import { KeybindingsManager, type KeyId } from "../src/core/keybindings.ts";
-import { ModelRegistry } from "../src/core/model-registry.ts";
+import type { ModelRegistry } from "../src/core/model-registry.ts";
+import type { ScopedModel } from "../src/core/model-resolver.ts";
 import { SessionManager } from "../src/core/session-manager.ts";
 
 describe("ExtensionRunner", () => {
@@ -26,13 +28,12 @@ describe("ExtensionRunner", () => {
 	let modelRegistry: ModelRegistry;
 	const defaultKeybindings = new KeybindingsManager().getEffectiveConfig();
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-runner-test-"));
 		extensionsDir = path.join(tempDir, "extensions");
 		fs.mkdirSync(extensionsDir);
 		sessionManager = SessionManager.inMemory();
-		const authStorage = AuthStorage.create(path.join(tempDir, "auth.json"));
-		modelRegistry = ModelRegistry.create(authStorage);
+		modelRegistry = await createInMemoryModelRegistry(AuthStorage.inMemory());
 	});
 
 	afterEach(() => {
@@ -98,7 +99,24 @@ describe("ExtensionRunner", () => {
 		getContextUsage: () => undefined,
 		compact: () => {},
 		getSystemPrompt: () => "",
+		getScopedModels: () => [],
 	};
+
+	describe("scopedModels", () => {
+		it("reflects the getScopedModels context action on ctx.scopedModels", async () => {
+			const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+			const runner = new ExtensionRunner(result.extensions, result.runtime, tempDir, sessionManager, modelRegistry);
+
+			// Before bindCore the default is an empty list (never undefined).
+			expect(runner.createContext().scopedModels).toEqual([]);
+
+			// After bindCore wires a getScopedModels action, ctx.scopedModels
+			// returns it live (same reference, lazy getter).
+			const scoped = [{ model: { id: "scoped-test" }, thinkingLevel: "high" }] as unknown as ScopedModel[];
+			runner.bindCore(extensionActions, { ...extensionContextActions, getScopedModels: () => scoped });
+			expect(runner.createContext().scopedModels).toBe(scoped);
+		});
+	});
 
 	describe("project_trust", () => {
 		it("continues past undecided handlers and returns the first yes/no decision", async () => {
@@ -575,6 +593,21 @@ describe("ExtensionRunner", () => {
 	});
 
 	describe("message and entry renderers", () => {
+		it("gets Markdown transformers in extension load order", async () => {
+			const extCode = `
+				export default function(pi) {
+					pi.registerMarkdownTransformer((markdown) => markdown);
+				}
+			`;
+			fs.writeFileSync(path.join(extensionsDir, "markdown-renderer-a.ts"), extCode);
+			fs.writeFileSync(path.join(extensionsDir, "markdown-renderer-b.ts"), extCode);
+
+			const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+			const runner = new ExtensionRunner(result.extensions, result.runtime, tempDir, sessionManager, modelRegistry);
+
+			expect(runner.getMarkdownTransformers()).toHaveLength(2);
+		});
+
 		it("gets message renderer by type", async () => {
 			const extCode = `
 				export default function(pi) {
@@ -656,6 +689,26 @@ describe("ExtensionRunner", () => {
 
 			expect(flags.get("shared-flag")?.description).toBe("first");
 			expect(result.runtime.flagValues.get("shared-flag")).toBe(true);
+		});
+
+		it("rejects default values that do not match the flag type", async () => {
+			const extCode = `
+				export default function(pi) {
+					pi.registerFlag("safe-mode", {
+						type: "boolean",
+						default: "false",
+					});
+				}
+			`;
+			fs.writeFileSync(path.join(extensionsDir, "bad-flag-default.ts"), extCode);
+
+			const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+
+			expect(result.extensions).toHaveLength(0);
+			expect(result.errors[0]?.error).toContain(
+				'Invalid default for flag "safe-mode": expected boolean, got string',
+			);
+			expect(result.runtime.flagValues.has("safe-mode")).toBe(false);
 		});
 
 		it("can set flag values", async () => {
@@ -817,7 +870,7 @@ describe("ExtensionRunner", () => {
 	});
 
 	describe("provider registration", () => {
-		it("bindCore ignores invalid queued registrations and reports extension error", () => {
+		it("bindCore ignores invalid queued registrations and reports extension error", async () => {
 			const runtime = createExtensionRuntime();
 			runtime.registerProvider(
 				"broken-provider",
@@ -837,7 +890,7 @@ describe("ExtensionRunner", () => {
 			expect(errors).toEqual([
 				'/tmp/broken-extension.ts: Provider broken-provider: "api" is required when registering streamSimple.',
 			]);
-			expect(() => modelRegistry.refresh()).not.toThrow();
+			await expect(modelRegistry.refresh()).resolves.toMatchObject({ aborted: false });
 		});
 
 		it("pre-bind unregister removes all queued registrations for a provider", () => {
